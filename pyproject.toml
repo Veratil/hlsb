@@ -1,0 +1,10 @@
+[project]
+requires-python = ">= 3.10"
+version = "25.02"
+name = "HLSB"
+dependencies = [
+  "construct",
+]
+description = "Hyper Light Breaker save file editor"
+readme = "README.md"
+license = "MIT"
