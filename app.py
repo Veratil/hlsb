@@ -1,4 +1,5 @@
 import functools
+import struct
 import pathlib
 import shutil
 import tkinter as tk
@@ -111,6 +112,9 @@ class Application(tk.Tk):
         self.rezsRemaining = tk.IntVar(self, name="World.Rezs")
         self.worldSeed1.trace_add("write", self.__updateIntVar)
         self.worldSeed2.trace_add("write", self.__updateIntVar)
+        self.spawnPosX.trace_add("write", self.__updateDoubleVar)
+        self.spawnPosY.trace_add("write", self.__updateDoubleVar)
+        self.spawnPosZ.trace_add("write", self.__updateDoubleVar)
         self.rezsRemaining.trace_add("write", self.__updateIntVar)
         # EXEs
         self.exeTiers = tk.StringVar(self, name="EXE.Tiers")
@@ -152,6 +156,21 @@ class Application(tk.Tk):
                 self.save_data.world_seed2 = new_value
             case "World.Rezs":
                 self.save_data.rezs_remaining = new_value
+
+    def __updateDoubleVar(self, varname, index, eventname):
+        if not self.save_data:
+            return
+        new_value = float(self.globalgetvar(varname))
+        # restrict to 32bit float
+        new_value = struct.unpack('f', struct.pack('f', new_value))[0]
+        print(f"updating {varname} to {new_value}")
+        match varname:
+            case "Spawn.X":
+                self.save_data.spawn_position.x = new_value
+            case "Spawn.Y":
+                self.save_data.spawn_position.y = new_value
+            case "Spawn.Z":
+                self.save_data.spawn_position.z = new_value
 
     def __updateSycom(self, varname, index, eventname):
         if not self.save_data:
