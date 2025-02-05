@@ -99,9 +99,9 @@ Gear_Data = Struct(
     "pad" / Int8ul
 )
 GearArray = Struct(
-        "length" / Int32ul,
-        "gear" / Array(this.length, Gear_Data)
-        )
+    "length" / Int32ul,
+    "gear" / Array(this.length, Gear_Data)
+)
 Item_Mod = Struct(
     "mod_type" / FName,
     "data" / Int32ul
@@ -256,13 +256,13 @@ HLB_Save = Struct(
     "unknown24" / UnknownStruct24,
     "vault" / Vault,
     "unknown25" / Int32ul,
-    "fragments_locked" / Struct(
+    "lore_fragments_found" / Struct(
         "length" / Int32ul,
         "fragments" / Array(this.length, FName)
         ),
-    "fragments_unlocked" / Struct(
+    "lore_unlocked" / Struct(
         "length" / Int32ul,
-        "fragments" / Array(this.length, FName)
+        "scenes" / Array(this.length, FName)
         ),
     "unknown26" / Array(2, Int32ul),
     "quests" / Quests,

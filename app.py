@@ -50,6 +50,7 @@ class Application(tk.Tk):
         self.__populate_world()
         self.__populate_vault()
         self.__populate_exe()
+        self.__populate_lore()
 
     def write_bsf(self):
         if not self.filepath:
@@ -121,6 +122,9 @@ class Application(tk.Tk):
         self.exeSlots = tk.StringVar(self, name="EXE.Slots")
         self.exeTiers.trace_add("write", self.__updateIntVar)
         self.exeSlots.trace_add("write", self.__updateIntVar)
+        # Lore
+        self.fragmentsFound = tk.Variable(self, name="Lore.Fragments")
+        self.loreUnlocked = tk.Variable(self, name="Lore.Unlocked")
 
     def print_data(self):
         if self.save_data:
@@ -179,23 +183,33 @@ class Application(tk.Tk):
             return
         if self.ignoreUpdateSycom:
             return
+        new_value = int(self.globalgetvar(varname))
         for sycom in self.save_data.sycom_upgrades.sycoms:
             if sycom.id != self.currentSycom:
                 continue
             for attr in sycom.attributes:
                 if attr.id[:-1] != varname:
                     continue
-                print(f"updating {attr.id} to {attr.bonus}")
-                attr.bonus = int(self.globalgetvar(varname))
+                print(f"updating {attr.id} to {new_value}")
+                attr.bonus = new_value
                 break
             else:
-                print("adding new attribute to sycom bonuses")
+                print(f"adding new attribute '{varname}=1' to sycom bonuses")
                 new_attr = bsf.AttributeBonus.build(dict(id=f"{varname}\x00", bonus=1))
                 sycom.attributes.append(bsf.AttributeBonus.parse(new_attr))
+                sycom.length += 1
             break
         else:
-            pass
+            print(f"sycom {self.currentSycom} not found in upgrade array")
+            self.__createNewSycomUpgradeStruct(self.currentSycom)
+            self.__updateSycom(varname, index, eventname)
             #mb.showerror("Sycom Not Found", "sycom not found in save_data, this probably shouldn't happen")
+
+    def __createNewSycomUpgradeStruct(self, sycom):
+        self.save_data.sycom_upgrades.length += 1
+        new_sycom = bsf.Sycom.build(dict(id=sycom, length=0, attributes=[]))
+        parsed = bsf.Sycom.parse(new_sycom)
+        self.save_data.sycom_upgrades.sycoms.append(parsed)
 
     def __populate_skins(self):
         for child in self.skinsFrame.winfo_children():
@@ -261,12 +275,6 @@ class Application(tk.Tk):
             case _:  # unknown
                 mb.showerror("Unknown item slot", f"Parsed an unknown item slot: {slotted_item.slot}")
 
-    def __createNewSycomUpgrade(self, sycom):
-        self.save_data.sycom_upgrades.length += 1
-        new_sycom = bsf.Sycom.build(dict(id=sycom, length=0, attributes=[]))
-        parsed = bsf.Sycom.parse(new_sycom)
-        self.save_data.sycom_upgrades.sycoms.append(parsed)
-
     def __populate_equipped_sycom_stats(self, sycom_):
         self.ignoreUpdateSycom = True
         self.sycomHP.set(0)
@@ -285,7 +293,7 @@ class Application(tk.Tk):
                 self.globalsetvar(attr.id[:-1], attr.bonus)
             break
         else:
-            self.__createNewSycomUpgrade(sycom_)
+            self.__createNewSycomUpgradeStruct(sycom_)
         self.ignoreUpdateSycom = False
 
     def __populate_world(self):
@@ -306,6 +314,10 @@ class Application(tk.Tk):
     def __populate_exe(self):
         self.exeTiers.set(self.save_data.tiers_unlocked)
         self.exeSlots.set(self.save_data.extra_slots)
+
+    def __populate_lore(self):
+        self.loreUnlocked.set([s[:-1] for s in self.save_data.lore_unlocked.scenes])
+        self.fragmentsFound.set([s[:-1] for s in self.save_data.lore_fragments_found.fragments])
 
     def __create_notebook(self):
         notebook = ttk.Notebook(self)
@@ -336,6 +348,7 @@ class Application(tk.Tk):
         self.__create_world_data_layout()
         self.__create_vault_layout()
         self.__create_exe_layout()
+        self.__create_lore_layout()
 
     def __create_character_data_layout(self):
         # set weight of grid layout so the middle grid is the largest space
@@ -570,6 +583,25 @@ class Application(tk.Tk):
         tk.Spinbox(exeFrame, textvariable=self.exeSlots, from_=0, to=19).grid(column=1, row=1)
         exeFrame.pack(fill=tk.BOTH)
 
+    def __create_lore_layout(self):
+        loreFrame = tk.Frame(self.lorePane, padx=5, pady=5)
+        fragmentFrame = tk.Frame(loreFrame)
+        tk.Label(fragmentFrame, text="Fragments Found").grid(row=0, column=0, sticky="ew")
+        fragmentsScroll = tk.Scrollbar(fragmentFrame, orient=tk.VERTICAL)
+        fragmentsScroll.grid(row=1, column=1, sticky="ns")
+        fragmentList = tk.Listbox(fragmentFrame, height=10, listvariable=self.fragmentsFound, yscrollcommand=fragmentsScroll.set)
+        fragmentList.grid(row=1, column=0, sticky="nsew")
+        fragmentsScroll['command'] = fragmentList.yview
+        unlockedFrame = tk.Frame(loreFrame)
+        tk.Label(unlockedFrame, text="Lore Unlocked").grid(row=0, column=0, sticky="ew")
+        unlocksScroll = tk.Scrollbar(unlockedFrame, orient=tk.VERTICAL)
+        unlocksScroll.grid(row=1, column=1, sticky="ns")
+        unlocksList = tk.Listbox(unlockedFrame, height=10, listvariable=self.loreUnlocked, yscrollcommand=unlocksScroll.set)
+        unlocksList.grid(row=1, column=0, sticky="nsew")
+        unlocksScroll['command'] = unlocksList.yview
+        fragmentFrame.grid(row=0, column=0)
+        unlockedFrame.grid(row=0, column=1)
+        loreFrame.grid(row=0, column=0)
 
 
 Application().run()

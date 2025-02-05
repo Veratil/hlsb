@@ -19,6 +19,7 @@ Ideally this is for speedrunning to be able to set seeds and starting conditions
 * View EXEs
   * Edit EXE tier level unlocked
   * Edit EXE extra slots unlocked
+* View found and unlocked Lore
 
 ## Future Functions
 
