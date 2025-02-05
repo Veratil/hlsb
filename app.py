@@ -85,6 +85,9 @@ class Application(tk.Tk):
         self.itemCores.trace_add("write", self.__updateIntVar)
         self.itemPartialCores.trace_add("write", self.__updateIntVar)
         self.itemMaterials.trace_add("write", self.__updateIntVar)
+        self.selectedItemLevel = tk.StringVar(self, name="Gear.Level")
+        self.selectedItemType = tk.StringVar(self, name="Gear.Type")
+        self.selectedItemRarity = tk.StringVar(self, name="Gear.Rarity")
         # Sycom Attributes
         self.sycomHP = tk.IntVar(self, name="Attribute.Shield")
         self.sycomBattery = tk.IntVar(self, name="Attribute.Battery")
@@ -255,23 +258,23 @@ class Application(tk.Tk):
         slot = slotted_item.slot
         match slotted_item.slot:
             case 0x01:  # blade
-                self.equippedBlade.set(slotted_item.item.item_type[11:])
+                self.equippedBlade.set(slotted_item.item.item_id[11:])
             case 0x02:  # rail
-                self.equippedRail.set(slotted_item.item.item_type[10:])
+                self.equippedRail.set(slotted_item.item.item_id[10:])
             case 0x03:  # amp
-                self.equippedAmp.set(slotted_item.item.item_type[13:])
+                self.equippedAmp.set(slotted_item.item.item_id[13:])
             case 0x0E:  # armor
-                self.equippedArmor.set(slotted_item.item.item_type[10:])
+                self.equippedArmor.set(slotted_item.item.item_id[10:])
             case 0x09:  # holo1
-                self.equippedHolo1.set(slotted_item.item.item_type[13:])
+                self.equippedHolo1.set(slotted_item.item.item_id[13:])
             case 0x0A:  # holo2
-                self.equippedHolo2.set(slotted_item.item.item_type[13:])
+                self.equippedHolo2.set(slotted_item.item.item_id[13:])
             case 0x0B:  # holo3
-                self.equippedHolo3.set(slotted_item.item.item_type[13:])
+                self.equippedHolo3.set(slotted_item.item.item_id[13:])
             case 0x0C:  # holo4
-                self.equippedHolo4.set(slotted_item.item.item_type[13:])
+                self.equippedHolo4.set(slotted_item.item.item_id[13:])
             case 0x0D:  # holo5
-                self.equippedHolo5.set(slotted_item.item.item_type[13:])
+                self.equippedHolo5.set(slotted_item.item.item_id[13:])
             case _:  # unknown
                 mb.showerror("Unknown item slot", f"Parsed an unknown item slot: {slotted_item.slot}")
 
@@ -306,10 +309,9 @@ class Application(tk.Tk):
 
     def __populate_vault(self):
         for (i, item) in enumerate(self.save_data.vault["items"]):
-            if item.item_type[:-1] == "None":
+            if item.item_id[:-1] == "None":
                 continue
-            self.globalsetvar(f"Vault.Item{i}", item.item_type[:-1])
-            #self.vaultStrings[i].set(item.item_type[:-1])
+            self.globalsetvar(f"Vault.Item{i}", item.item_id[:-1])
 
     def __populate_exe(self):
         self.exeTiers.set(self.save_data.tiers_unlocked)
@@ -318,6 +320,47 @@ class Application(tk.Tk):
     def __populate_lore(self):
         self.loreUnlocked.set([s[:-1] for s in self.save_data.lore_unlocked.scenes])
         self.fragmentsFound.set([s[:-1] for s in self.save_data.lore_fragments_found.fragments])
+
+    def __select_equipment(self, slot):
+        if not self.currentSkin:
+            return
+        for character in self.save_data.equipped_items.characters:
+            if character != self.currentSkin:
+                continue
+            for gear in character.equipment:
+                if gear.slot != slot:
+                    continue
+                self.__populate_gear_detail(gear.item)
+                break
+            else:
+                mb.showerror("No item", f"No item equipped in slot: {slot}")
+            break
+        else:
+            mb.showerror("No character", f"No character found in equipment array named: {self.currentSkin}")
+
+    def __populate_gear_detail(self, item):
+        for child in self.itemStatFrame.winfo_children():
+            child.destroy()
+        for child in self.modListFrame.winfo_children():
+            child.destroy()
+        self.selectedItemLevel.set(f"Lv. {item.level}")
+        self.selectedItemType.set(item.item_id)
+        self.selectedItemRarity.set('*' * item.rarity)
+        if item.item_type != 0:
+            tk.Label(self.itemStatFrame, text=f"ATK +{item.atk_min}-{item.atk_max}").pack()
+            tk.Label(self.itemStatFrame, text=f"STAGGER {item.stagger_min}-{item.stagger_max}").pack()
+            if item.item_id.startswith("Gear.Rail"):
+                tk.Label(self.itemStatFrame, text=f"ROF {item.rate_of_fire}").pack()
+        if item.attribute[:-1] != "None":
+            tk.Label(self.itemStatFrame, text=f"{item.attribute.split('.')[1][:-1]} +{item.attribute_bonus}").pack()
+        if item.armor_type > 0:
+            tk.Label(self.itemStatFrame, text=f"HP {item.hp:+}").pack()
+            tk.Label(self.itemStatFrame, text=f"ARMOR {item.armor:+}").pack()
+            tk.Label(self.itemStatFrame, text=f"DASH SPEED {item.dash_speed:+}").pack()
+            tk.Label(self.itemStatFrame, text=f"DASH DISTANCE {item.dash_distance:+}").pack()
+        if item.num_mods > 0:
+            for mod in item.mods:
+                tk.Label(self.modListFrame, text=f"{mod.mod_type[:-1]} x{mod.data}").pack()
 
     def __create_notebook(self):
         notebook = ttk.Notebook(self)
@@ -352,12 +395,12 @@ class Application(tk.Tk):
 
     def __create_character_data_layout(self):
         # set weight of grid layout so the middle grid is the largest space
-        self.characterPane.grid_columnconfigure(0, weight=2)
-        self.characterPane.grid_columnconfigure(1, weight=4)
-        self.characterPane.grid_columnconfigure(2, weight=2)
+        self.characterPane.grid_columnconfigure(0, weight=1)
+        self.characterPane.grid_columnconfigure(1, weight=1)
+        self.characterPane.grid_columnconfigure(2, weight=1)
         self.characterPane.grid_rowconfigure(0, weight=1)
-        self.characterPane.grid_rowconfigure(1, weight=4)
-        self.characterPane.grid_rowconfigure(2, weight=2)
+        self.characterPane.grid_rowconfigure(1, weight=1)
+        self.characterPane.grid_rowconfigure(2, weight=1)
 
         # top row, character select
         skinsFrame = tk.Frame(self.characterPane, padx=5, pady=2, bd=1, relief=tk.GROOVE)
@@ -366,7 +409,7 @@ class Application(tk.Tk):
         openLabel.pack()
 
         # left frame, sycom stats
-        sycomFrame = tk.Frame(self.characterPane, relief=tk.GROOVE, padx=5)
+        sycomFrame = tk.Frame(self.characterPane, relief=tk.GROOVE, padx=5)  #, bg="#990099")
         sycomLabel = tk.Label(sycomFrame, textvariable=self.equippedSycom)
         sycomLabel.pack(fill=tk.X)
         hpFrame = tk.Frame(sycomFrame)
@@ -434,41 +477,50 @@ class Application(tk.Tk):
         #self.opsEntry = opsEntry
 
         # middle frame, character equipped gear
-        gearFrame = tk.Frame(self.characterPane, relief=tk.GROOVE, padx=5)
+        gearFrame = tk.Frame(self.characterPane, relief=tk.GROOVE, padx=5)  #, bg="#994400")
         holoFrame = tk.Frame(gearFrame, padx=5)
-        holo1Button = tk.Button(holoFrame, textvariable=self.equippedHolo1, height=4, width=8, wraplength=70)
+        holo1Button = tk.Button(holoFrame, textvariable=self.equippedHolo1, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x09))
         holo1Button.pack(side=tk.LEFT)
-        holo2Button = tk.Button(holoFrame, textvariable=self.equippedHolo2, height=4, width=8, wraplength=70)
+        holo2Button = tk.Button(holoFrame, textvariable=self.equippedHolo2, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x0A))
         holo2Button.pack(side=tk.LEFT)
-        holo3Button = tk.Button(holoFrame, textvariable=self.equippedHolo3, height=4, width=8, wraplength=70)
+        holo3Button = tk.Button(holoFrame, textvariable=self.equippedHolo3, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x0B))
         holo3Button.pack(side=tk.LEFT)
-        holo4Button = tk.Button(holoFrame, textvariable=self.equippedHolo4, height=4, width=8, wraplength=70)
+        holo4Button = tk.Button(holoFrame, textvariable=self.equippedHolo4, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x0C))
         holo4Button.pack(side=tk.LEFT)
-        holo5Button = tk.Button(holoFrame, textvariable=self.equippedHolo5, height=4, width=8, wraplength=70)
+        holo5Button = tk.Button(holoFrame, textvariable=self.equippedHolo5, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x0D))
         holo5Button.pack(side=tk.LEFT)
         holoFrame.pack(fill=tk.BOTH, expand="true")
         gearRow1Frame = tk.Frame(gearFrame, padx=5)
         sycomButton = tk.Button(gearRow1Frame, textvariable=self.equippedSycom, height=4, width=8, wraplength=70)
         sycomButton.pack(side=tk.LEFT)
-        ampButton = tk.Button(gearRow1Frame, textvariable=self.equippedAmp, height=4, width=8, wraplength=70)
+        ampButton = tk.Button(gearRow1Frame, textvariable=self.equippedAmp, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x03))
         ampButton.pack(side=tk.LEFT)
         gearRow1Frame.pack(fill=tk.BOTH, expand="true")
         gearRow2Frame = tk.Frame(gearFrame, padx=5)
-        bladeButton = tk.Button(gearRow2Frame, textvariable=self.equippedBlade, height=4, width=8, wraplength=70)
+        bladeButton = tk.Button(gearRow2Frame, textvariable=self.equippedBlade, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x01))
         bladeButton.pack(side=tk.LEFT)
-        railButton = tk.Button(gearRow2Frame, textvariable=self.equippedRail, height=4, width=8, wraplength=70)
+        railButton = tk.Button(gearRow2Frame, textvariable=self.equippedRail, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x02))
         railButton.pack(side=tk.LEFT)
         disabledButton = tk.Button(gearRow2Frame, state=tk.DISABLED, height=4, width=8, wraplength=70)
         disabledButton.pack(side=tk.LEFT)
-        armorButton = tk.Button(gearRow2Frame, textvariable=self.equippedArmor, height=4, width=8, wraplength=70)
+        armorButton = tk.Button(gearRow2Frame, textvariable=self.equippedArmor, height=4, width=8, wraplength=70, command=functools.partial(self.__select_equipment, 0x0E))
         armorButton.pack(side=tk.LEFT)
         gearRow2Frame.pack(fill=tk.BOTH, expand="true")
 
         # right frame, item detail
-        gearDetailFrame = tk.Frame(self.characterPane, bd=1, bg="#994499", relief=tk.GROOVE)
+        gearDetailFrame = tk.Frame(self.characterPane, relief=tk.GROOVE, padx=5)  #, bg="#994499"
+        tk.Label(gearDetailFrame, textvariable=self.selectedItemType).pack(fill=tk.X)
+        tk.Label(gearDetailFrame, textvariable=self.selectedItemLevel).pack()
+        tk.Label(gearDetailFrame, textvariable=self.selectedItemRarity).pack()
+        ttk.Separator(gearDetailFrame, orient=tk.HORIZONTAL).pack(fill=tk.X)
+        self.itemStatFrame = tk.Frame(gearDetailFrame, padx=5)
+        self.itemStatFrame.pack()
+        ttk.Separator(gearDetailFrame, orient=tk.HORIZONTAL).pack(fill=tk.X)
+        self.modListFrame = tk.Frame(gearDetailFrame, padx=5)
+        self.modListFrame.pack()
 
         # bottom row, global materials
-        itemFrame = tk.Frame(self.characterPane, padx=5)
+        itemFrame = tk.Frame(self.characterPane, padx=5)  #, bg="#004499")
         bloodFrame = tk.Frame(itemFrame)
         bloodLabel = tk.Label(bloodFrame, anchor=tk.CENTER, justify=tk.CENTER, text="Bright Blood")
         bloodEntry = tk.Spinbox(bloodFrame, from_=0, to=INT32_MAX, justify=tk.CENTER, textvariable=self.itemBrightBlood)
@@ -521,10 +573,10 @@ class Application(tk.Tk):
 
         # put frames on grid
         skinsFrame.grid(column=0, row=0, columnspan=3, sticky="nsew")
-        sycomFrame.grid(column=0, row=1, rowspan=2, sticky="nsew")
-        gearFrame.grid(column=1, row=1, sticky="nsew")
-        gearDetailFrame.grid(column=2, row=1, rowspan=2, sticky="nsew")
-        itemFrame.grid(column=1, row=2, sticky="nsew")
+        sycomFrame.grid(column=0, row=1, rowspan=2, sticky="ne")
+        gearFrame.grid(column=1, row=1)
+        gearDetailFrame.grid(column=2, row=1, rowspan=2, sticky="nw")
+        itemFrame.grid(column=1, row=2)
 
     def __create_world_data_layout(self):
         seed1Label = tk.Label(self.worldPane, anchor=tk.CENTER, justify=tk.LEFT, text="Seed1")
@@ -574,6 +626,13 @@ class Application(tk.Tk):
         gearDetailFrame = tk.Frame(self.vaultPane, bd=1, bg="#994499", relief=tk.GROOVE)
         vaultFrame.pack(fill=tk.BOTH, side=tk.LEFT)
         gearDetailFrame.pack(fill=tk.BOTH, side=tk.LEFT, expand=True)
+        # tk.Label(gearDetailFrame, textvariable=self.selectedItemType).pack()
+        # tk.Label(gearDetailFrame, text="Lv.").pack()
+        # tk.Label(gearDetailFrame, textvariable=self.selectedItemLevel).pack()
+        # ttk.Separator(gearDetailFrame, orient=tk.HORIZONTAL).pack()
+        # itemStatFrame = tk.Frame(gearDetailFrame).pack()
+        # ttk.Separator(gearDetailFrame, orient=tk.HORIZONTAL).pack()
+        # modListFrame = tk.Frame(gearDetailFrame).pack()
 
     def __create_exe_layout(self):
         exeFrame = tk.Frame(self.exePane, padx=5, pady=5)
