@@ -182,7 +182,24 @@ Quests = Struct(
 )
 Vendors = Struct(
     "length" / Int32ul,
-    "vendors" / Array(this.length, Struct("vendor_type" / FName, "a" / Int32ul, "length" / Int32ul, "inventory" / Array(this.length, Struct("a" / Int32ul, "item" / Item, "b" / Int32sl, "c" / Int32sl))))
+    "vendors" / Array(
+        this.length,
+        Struct(
+            "vendor_type" / FName,
+            "a" / Int32ul,
+            "length" / Int32ul,
+            "inventory" / Array(
+                this.length,
+                Struct(
+                    "a" / Int32ul,
+                    "item" / Item,
+                    "b" / Int32sl,
+                    "c" / Int32sl,
+                )
+            ),
+            "b" / Int32sl,
+        )
+    )
 )
 AttributeBonus = Struct(
     "id" / FName,
@@ -275,15 +292,10 @@ HLB_Save = Struct(
         "length" / Int32ul,
         "vendors" / Array(this.length, Struct("id" / FName, "gifts" / Int32ul))
         ),
-    "vendor_stock" / Struct(
-        "length" / Int32ul,
-        "vendors" / Array(this.length, Struct("id" / FName, "a" / Int32ul, "length" / Int32ul, "items" / Array(this.length, Item)))
-        ),
     "vendor_unknown2" / Struct(
         "length" / Int32ul,
         "vendors" / Array(this.length, Struct("id" / FName, "a" / Int32ul, "b" / Int32sl, "c" / Int32ul, "d" / Int32ul))
         ),
-    "unknown28" / Int32ul,
     "sycoms_unlocked" / Struct(
         "length" / Int32ul,
         "sycoms" / Array(this.length, FName)
@@ -301,9 +313,9 @@ HLB_Save = Struct(
         "tutorials" / Array(this.length, FName)
         ),
     "unknown32" / Int32ul,
-    "world_vendors" / Vendors,
     "unknown33" / Array(25, Int32ul),
-    "pad" / Int8ul
+    "pad" / Int8ul,
+    "world_vendors" / Vendors,
 )
 
 def generate_save_struct(data):
