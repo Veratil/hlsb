@@ -9,6 +9,7 @@ Ideally this is for speedrunning to be able to set seeds and starting conditions
 * View Character Data
   * View unlocked skins
   * View equipped gear
+    * View basic gear detail
   * Edit equipped Sycom attributes per skin
   * Edit items count
 * View World Data
